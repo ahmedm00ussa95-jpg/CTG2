@@ -3120,8 +3120,6 @@ function openAddPurchase(){
 }
 function addPurItem(){purItems.push({prodId:'',qty:1,price:0});renderPurItems();}
 function renderPurItems(){
-  const prodOpts='<option value="">-- اختر منتج --</option>'+Object.entries(S.products).map(([id,p])=>`<option value="${id}">${p.name}</option>`).join('');
-  const prod=S.products[item.prodId];
   document.getElementById('pur-items-list').innerHTML=purItems.map((item,i)=>{
     const prod=S.products[item.prodId];
     const prodName=prod?prod.name:'-- اختر منتج --';
@@ -6401,7 +6399,7 @@ function _ssAdd(wrapId, dataType) {
 
 // helpers
 function escHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
-function escRegex(s) { return (s||'').replace(/[.*+?^${}()|[\]\]/g,'\$&'); }
+function escRegex(s) { return (s||'').replace(/[-.*+?^${}()|\[\]\\]/g,'\\$&'); }
 
 // ============================================================
 // ربط الـ Smart Select بالأماكن المطلوبة
