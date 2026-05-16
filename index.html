@@ -398,8 +398,13 @@ body.printing-report .print-report-header{
   <div class="topbar">
     <div class="topbar-title"><i id="pg-icon" class="fas fa-chart-pie"></i><span id="pg-title">لوحة التحكم</span></div>
     <div class="topbar-actions">
+      <!-- مؤشر حالة الاتصال - دائماً مرئي في الـ topbar -->
+      <div id="conn-indicator" style="display:flex;align-items:center;gap:7px;padding:6px 12px;border-radius:20px;background:var(--green-bg);border:1px solid var(--green);font-size:11px;font-weight:700;color:var(--green);transition:all .3s;cursor:default;" title="حالة الاتصال">
+        <span id="conn-dot" style="width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;flex-shrink:0;"></span>
+        <span id="conn-text">متصل</span>
+      </div>
       <button class="btn btn-warning" id="queue-btn" onclick="openQueuePanel()" style="display:none;position:relative;">
-        <i class="fas fa-clock"></i> عمليات معلقة
+        <i class="fas fa-clock"></i> <span id="queue-btn-text">عمليات معلقة</span>
         <span id="queue-count" style="position:absolute;top:-6px;left:-6px;background:#f85149;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;display:flex;align-items:center;justify-content:center;font-weight:700;">0</span>
       </button>
       <span class="clock" id="clock"></span>
@@ -570,7 +575,14 @@ body.printing-report .print-report-header{
         </div>
         <div style="padding:10px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:7px;">
           <div style="display:flex;align-items:center;gap:7px;">
-            <select class="fc" id="pos-cust" style="flex:1;"></select>
+            <div class="smart-select-wrap" style="flex:1;" id="pos-cust-wrap">
+  <div class="smart-select-box fc" id="pos-cust-box" onclick="openSmartSelect('pos-cust-wrap','customers','عميل نقدي')" tabindex="0">
+    <span class="ss-icon">👤</span>
+    <span class="ss-label" id="pos-cust-label">عميل نقدي</span>
+    <i class="fas fa-chevron-down ss-arrow"></i>
+  </div>
+  <input type="hidden" id="pos-cust" value="">
+</div>
             <button class="btn btn-ghost btn-xs" onclick="togglePosAddCust()" title="إضافة عميل جديد" id="pos-add-cust-btn" style="flex-shrink:0;"><i class="fas fa-user-plus"></i></button>
           </div>
           <!-- Inline add customer form (hidden by default) -->
@@ -1304,9 +1316,25 @@ body.printing-report .print-report-header{
   <div class="modal-head"><h3><i class="fas fa-cart-plus" style="color:var(--green)"></i> فاتورة شراء جديدة</h3><button class="close-btn" onclick="closeModal('modal-purchase')"><i class="fas fa-times"></i></button></div>
   <div class="modal-body">
     <div class="form-row form-row-3 mb-3">
-      <div class="fg"><label>المورد *</label><select class="fc" id="purf-sup"><option value="">-- اختر مورد --</option></select></div>
+      <div class="fg"><label>المورد *</label><div class="smart-select-wrap" id="purf-sup-wrap">
+  <div class="smart-select-box fc" id="purf-sup-box" onclick="openSmartSelect('purf-sup-wrap','suppliers','اختر مورداً')" tabindex="0">
+    <span class="ss-icon">🏭</span>
+    <span class="ss-label" id="purf-sup-label">-- اختر مورد --</span>
+    <i class="fas fa-chevron-down ss-arrow"></i>
+  </div>
+  <input type="hidden" id="purf-sup" value="">
+</div></div>
       <div class="fg"><label>التاريخ</label><input class="fc" id="purf-date" type="date"></div>
-      <div class="fg"><label>المخزن *</label><select class="fc" id="purf-wh"></select></div>
+      <div class="fg"><label>المخزن *</label>
+  <div class="smart-select-wrap" id="purf-wh-wrap">
+    <div class="smart-select-box fc" onclick="openSmartSelect('purf-wh-wrap','warehouses','اختر مخزناً')" tabindex="0">
+      <span class="ss-icon">🏪</span>
+      <span class="ss-label" id="purf-wh-label">-- اختر مخزن --</span>
+      <i class="fas fa-chevron-down ss-arrow"></i>
+    </div>
+    <input type="hidden" id="purf-wh" value="">
+  </div>
+</div>
     </div>
     <div class="form-row form-row-3 mb-3">
       <div class="fg"><label>طريقة الدفع</label><select class="fc" id="purf-pay"><option value="cash">نقدي</option><option value="credit">آجل</option><option value="transfer">تحويل</option><option value="check">شيك</option></select></div>
@@ -1396,9 +1424,25 @@ body.printing-report .print-report-header{
   <div class="modal-head"><h3><i class="fas fa-file-invoice" style="color:var(--accent)"></i> فاتورة يدوية</h3><button class="close-btn" onclick="closeModal('modal-manual')"><i class="fas fa-times"></i></button></div>
   <div class="modal-body">
     <div class="form-row form-row-3 mb-3">
-      <div class="fg"><label>العميل</label><select class="fc" id="mi-cust"><option value="">عميل نقدي</option></select></div>
+      <div class="fg"><label>العميل</label><div class="smart-select-wrap" id="mi-cust-wrap">
+  <div class="smart-select-box fc" id="mi-cust-box" onclick="openSmartSelect('mi-cust-wrap','customers','عميل نقدي')" tabindex="0">
+    <span class="ss-icon">👤</span>
+    <span class="ss-label" id="mi-cust-label">عميل نقدي</span>
+    <i class="fas fa-chevron-down ss-arrow"></i>
+  </div>
+  <input type="hidden" id="mi-cust" value="">
+</div></div>
       <div class="fg"><label>التاريخ</label><input class="fc" id="mi-date" type="date"></div>
-      <div class="fg"><label>المخزن</label><select class="fc" id="mi-wh"></select></div>
+      <div class="fg"><label>المخزن</label>
+  <div class="smart-select-wrap" id="mi-wh-wrap">
+    <div class="smart-select-box fc" onclick="openSmartSelect('mi-wh-wrap','warehouses','اختر مخزناً')" tabindex="0">
+      <span class="ss-icon">🏪</span>
+      <span class="ss-label" id="mi-wh-label">-- اختر مخزن --</span>
+      <i class="fas fa-chevron-down ss-arrow"></i>
+    </div>
+    <input type="hidden" id="mi-wh" value="">
+  </div>
+</div>
     </div>
     <div class="form-row form-row-2 mb-3">
       <div class="fg"><label>طريقة الدفع</label><select class="fc" id="mi-pay"><option value="cash">نقدي</option><option value="card">بطاقة</option><option value="transfer">تحويل</option><option value="credit">آجل</option></select></div>
@@ -2073,8 +2117,9 @@ function updateWhSelects(){
   ['pos-wh','prod-wh-filter','rep-wh'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=filterOpts;});
 }
 function updateCustSelects(){
-  const opts='<option value="">عميل نقدي</option>'+Object.entries(S.customers).map(([id,c])=>`<option value="${id}">${c.name}</option>`).join('');
-  ['pos-cust','mi-cust'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=opts;});
+  // تحديث legacy (للتوافق مع أي مكان آخر)
+  // الآن الـ smart selects تعتمد على S.customers مباشرة
+  // لا شيء يلزم هنا - البيانات محفوظة في S
 }
 
 // POS - Inline Add Customer
@@ -2119,8 +2164,7 @@ function updateBCSelects(){
   el.innerHTML='<option value="">-- اختر منتج --</option>'+Object.entries(S.products).map(([id,p])=>`<option value="${id}">${p.name} (${p.code||'-'})</option>`).join('');
 }
 function fillSupSelects(){
-  const opts='<option value="">-- اختر مورد --</option>'+Object.entries(S.suppliers).map(([id,s])=>`<option value="${id}" data-name="${s.name}">${s.name}</option>`).join('');
-  const el=document.getElementById('purf-sup');if(el)el.innerHTML=opts;
+  // الـ smart select يقرأ من S.suppliers مباشرة — لا شيء مطلوب
 }
 
 // ============================================================
@@ -3077,16 +3121,35 @@ function openAddPurchase(){
 function addPurItem(){purItems.push({prodId:'',qty:1,price:0});renderPurItems();}
 function renderPurItems(){
   const prodOpts='<option value="">-- اختر منتج --</option>'+Object.entries(S.products).map(([id,p])=>`<option value="${id}">${p.name}</option>`).join('');
-  document.getElementById('pur-items-list').innerHTML=purItems.map((item,i)=>`
-    <div style="display:grid;grid-template-columns:1fr 70px 120px 30px;gap:7px;margin-bottom:7px;align-items:center;">
-      <select class="fc" onchange="purItems[${i}].prodId=this.value;autoFillPurPrice(${i})">${prodOpts}</select>
-      <input class="fc" type="number" placeholder="كمية" value="${item.qty}" min="1" oninput="purItems[${i}].qty=+this.value;calcPurTotal()">
-      <input class="fc" type="number" placeholder="سعر الشراء" value="${item.price}" min="0" step="0.01" oninput="purItems[${i}].price=+this.value;calcPurTotal()">
+  const prod=S.products[item.prodId];
+  document.getElementById('pur-items-list').innerHTML=purItems.map((item,i)=>{
+    const prod=S.products[item.prodId];
+    const prodName=prod?prod.name:'-- اختر منتج --';
+    const prodIcon=prod?'📦':'🔍';
+    return `<div style="display:grid;grid-template-columns:1fr 80px 130px 32px;gap:7px;margin-bottom:8px;align-items:center;" id="pur-row-${i}">
+      <div class="smart-select-wrap" id="pur-prod-wrap-${i}">
+        <div class="smart-select-box fc" onclick="openSmartSelect('pur-prod-wrap-${i}','products','اختر منتجاً',function(id,label){purItems[${i}].prodId=id;autoFillPurPrice(${i});})" tabindex="0" style="font-size:12px;padding:6px 10px;">
+          <span class="ss-icon" style="font-size:13px;">${prodIcon}</span>
+          <span class="ss-label" id="pur-prod-label-${i}" style="font-size:12px;">${prodName}</span>
+          <i class="fas fa-chevron-down ss-arrow"></i>
+        </div>
+        <input type="hidden" id="pur-prod-${i}" value="${item.prodId}">
+      </div>
+      <input class="fc" type="number" placeholder="كمية" value="${item.qty}" min="1" style="font-size:12px;" oninput="purItems[${i}].qty=+this.value;calcPurTotal()">
+      <input class="fc" type="number" placeholder="سعر الشراء" value="${item.price}" min="0" step="0.01" style="font-size:12px;" oninput="purItems[${i}].price=+this.value;calcPurTotal()">
       <button class="btn btn-danger btn-xs" onclick="purItems.splice(${i},1);renderPurItems()"><i class="fas fa-times"></i></button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   calcPurTotal();
 }
-function autoFillPurPrice(i){const p=S.products[purItems[i].prodId];if(p){purItems[i].price=p.cost||0;}renderPurItems();}
+function autoFillPurPrice(i){
+  // تحديث prodId من الـ hidden input
+  const hiddenInput=document.getElementById('pur-prod-'+i);
+  if(hiddenInput&&hiddenInput.value) purItems[i].prodId=hiddenInput.value;
+  const p=S.products[purItems[i].prodId];
+  if(p){purItems[i].price=p.cost||0;}
+  renderPurItems();
+}
 function calcPurTotal(){
   const t=purItems.reduce((s,i)=>s+(i.qty*i.price),0);
   const paid=parseFloat(document.getElementById('purf-paid')?.value)||0;
@@ -3098,6 +3161,11 @@ function calcPurBalance(){calcPurTotal();}
 async function savePurchase(){
   const supId=document.getElementById('purf-sup').value;
   const whId=document.getElementById('purf-wh').value;
+  // مزامنة purItems من الـ hidden inputs قبل الحفظ
+  purItems.forEach((item,i)=>{
+    const h=document.getElementById('pur-prod-'+i);
+    if(h&&h.value) item.prodId=h.value;
+  });
   const supName=supId?(S.suppliers[supId]?.name||supId):'مورد غير محدد';
   if(!supId){toast('يرجى اختيار المورد','error');return;}
   if(!whId){toast('يرجى اختيار المخزن','error');return;}
@@ -5637,14 +5705,26 @@ async function openQueuePanel(){
 }
 
 function updateQueueBadge(count){
+  // زر الـ topbar
   const btn=document.getElementById('queue-btn');
   const cnt=document.getElementById('queue-count');
-  if(!btn||!cnt)return;
-  if(count>0){
-    btn.style.display='flex';
-    cnt.textContent=count;
-  }else{
-    btn.style.display='none';
+  if(btn&&cnt){
+    if(count>0){
+      btn.style.display='flex';
+      cnt.textContent=count;
+    }else{
+      btn.style.display='none';
+    }
+  }
+  // نص الـ badge السفلي
+  const badgeOps=document.getElementById('badge-ops');
+  if(badgeOps){
+    if(count>0){
+      badgeOps.style.display='inline-block';
+      badgeOps.textContent=count+' عملية معلقة';
+    }else{
+      badgeOps.style.display='none';
+    }
   }
 }
 
@@ -5685,14 +5765,41 @@ const OM={
   },
 
   updateUI(){
+    // --- Sidebar status ---
     const sb=document.querySelector('.sb-status');
-    if(!sb)return;
-    if(this.isOnline){
-      sb.innerHTML='<span style="width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;margin-left:5px;"></span>متصل';
-      sb.style.color='var(--green)';
-    }else{
-      sb.innerHTML='<span style="width:7px;height:7px;border-radius:50%;background:var(--yellow);display:inline-block;margin-left:5px;animation:_pulse 1s infinite;"></span>أوف لاين';
-      sb.style.color='var(--yellow)';
+    if(sb){
+      if(this.isOnline){
+        sb.innerHTML='<span style="width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;margin-left:5px;"></span>متصل بالسحابة';
+        sb.style.color='var(--green)';
+      }else{
+        sb.innerHTML='<span style="width:7px;height:7px;border-radius:50%;background:var(--yellow);display:inline-block;margin-left:5px;animation:_pulse 1s infinite;"></span>أوف لاين';
+        sb.style.color='var(--yellow)';
+      }
+    }
+    // --- Topbar connection indicator (دائماً مرئي) ---
+    const ind=document.getElementById('conn-indicator');
+    const dot=document.getElementById('conn-dot');
+    const txt=document.getElementById('conn-text');
+    if(ind&&dot&&txt){
+      if(this.isOnline){
+        ind.style.background='var(--green-bg)';
+        ind.style.borderColor='var(--green)';
+        ind.style.color='var(--green)';
+        dot.style.background='var(--green)';
+        dot.style.animation='none';
+        txt.textContent='متصل';
+        ind.title='متصل بالإنترنت';
+      }else{
+        ind.style.background='var(--yellow-bg)';
+        ind.style.borderColor='var(--yellow)';
+        ind.style.color='var(--yellow)';
+        dot.style.background='var(--yellow)';
+        dot.style.animation='_pulse 1s infinite';
+        txt.textContent='أوف لاين';
+        ind.title='لا يوجد اتصال — البيانات تُحفظ محلياً';
+        ind.style.cursor='pointer';
+        ind.onclick=()=>openQueuePanel();
+      }
     }
   },
 
@@ -5896,29 +6003,482 @@ window.addEventListener('fbReady',()=>{
   s.textContent=`
     @keyframes _pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
     #offline-badge{
-      position:fixed;bottom:20px;left:20px;z-index:8000;
-      background:var(--yellow);color:#fff;padding:9px 18px;
-      border-radius:24px;font-family:'Cairo',sans-serif;
-      font-size:12px;font-weight:700;display:none;
-      align-items:center;gap:9px;cursor:pointer;
-      box-shadow:0 4px 20px rgba(0,0,0,.3);
+      position:fixed;
+      /* على الكمبيوتر: نبعد عن الـ sidebar اليميني (240px) */
+      bottom:24px;
+      left:50%;
+      transform:translateX(-50%);
+      z-index:8000;
+      background:var(--yellow);color:#fff;
+      padding:10px 22px;border-radius:28px;
+      font-family:'Cairo',sans-serif;font-size:13px;font-weight:700;
+      display:none;align-items:center;gap:10px;cursor:pointer;
+      box-shadow:0 6px 28px rgba(0,0,0,.35);
+      white-space:nowrap;
       animation:_slideUp .3s ease;
+      border:2px solid rgba(255,255,255,.25);
     }
     #offline-badge.show{display:flex;}
-    @keyframes _slideUp{from{transform:translateY(14px);opacity:0;}to{transform:translateY(0);opacity:1;}}
-    #offline-badge .dot{width:8px;height:8px;border-radius:50%;background:#fff;animation:_pulse 1s infinite;}
+    @keyframes _slideUp{from{transform:translateX(-50%) translateY(16px);opacity:0;}to{transform:translateX(-50%) translateY(0);opacity:1;}}
+    #offline-badge .dot{width:9px;height:9px;border-radius:50%;background:#fff;animation:_pulse 1s infinite;flex-shrink:0;}
+    #offline-badge .badge-count{
+      background:rgba(0,0,0,.2);border-radius:12px;
+      padding:1px 8px;font-size:11px;
+    }
+    @media(max-width:768px){
+      #offline-badge{left:16px;right:16px;transform:none;justify-content:center;}
+      @keyframes _slideUp{from{transform:translateY(16px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+    }
   `;
   document.head.appendChild(s);
 
   const badge=document.createElement('div');
   badge.id='offline-badge';
-  badge.innerHTML='<div class="dot"></div>أوف لاين — اضغط لعرض العمليات المعلقة';
+  badge.innerHTML='<div class="dot"></div><span id="badge-msg">أوف لاين — اضغط لعرض العمليات المعلقة</span><span class="badge-count" id="badge-ops" style="display:none;">0 عملية</span>';
   badge.onclick=()=>openQueuePanel();
   document.body.appendChild(badge);
 })();
 
 // تشغيل النظام
 OM.init();
+
+// ============================================================
+// SMART SELECT SYSTEM - نظام البحث الذكي
+// ============================================================
+
+// CSS للـ Smart Select
+(function(){
+  const style = document.createElement('style');
+  style.textContent = `
+    .smart-select-wrap { position:relative; }
+    .smart-select-box {
+      display:flex; align-items:center; gap:8px; cursor:pointer;
+      user-select:none; min-height:38px; padding:6px 10px;
+      transition:border-color .2s, box-shadow .2s;
+    }
+    .smart-select-box:hover { border-color:var(--accent); }
+    .smart-select-box:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-bg); }
+    .ss-icon { font-size:15px; flex-shrink:0; }
+    .ss-label { flex:1; font-size:13px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .ss-arrow { font-size:10px; color:var(--text3); flex-shrink:0; transition:transform .2s; }
+    .smart-select-box.open .ss-arrow { transform:rotate(180deg); }
+
+    /* نافذة البحث */
+    .ss-dropdown {
+      position:fixed; z-index:99999;
+      background:var(--card); border:1px solid var(--border);
+      border-radius:14px; box-shadow:0 12px 48px rgba(0,0,0,.25);
+      min-width:280px; max-width:420px;
+      display:flex; flex-direction:column;
+      animation:ssIn .15s ease;
+      overflow:hidden;
+    }
+    @keyframes ssIn {
+      from { opacity:0; transform:translateY(-8px) scale(.97); }
+      to   { opacity:1; transform:translateY(0) scale(1); }
+    }
+
+    /* حقل البحث */
+    .ss-search-wrap {
+      padding:10px 12px 8px;
+      border-bottom:1px solid var(--border);
+      background:var(--card);
+      position:sticky; top:0; z-index:1;
+    }
+    .ss-search {
+      width:100%; padding:8px 12px 8px 36px;
+      border:1.5px solid var(--border); border-radius:9px;
+      background:var(--card2); color:var(--text);
+      font-family:'Cairo',sans-serif; font-size:13px;
+      outline:none; transition:border-color .2s;
+      direction:rtl;
+    }
+    .ss-search:focus { border-color:var(--accent); }
+    .ss-search-icon {
+      position:absolute; right:22px; top:50%; transform:translateY(-50%);
+      color:var(--text3); font-size:13px; pointer-events:none;
+    }
+
+    /* قائمة النتائج */
+    .ss-list {
+      overflow-y:auto; max-height:280px;
+      padding:6px;
+    }
+    .ss-item {
+      display:flex; align-items:center; gap:10px;
+      padding:9px 11px; border-radius:9px; cursor:pointer;
+      transition:background .12s; font-size:13px;
+    }
+    .ss-item:hover, .ss-item.focused { background:var(--accent-bg); }
+    .ss-item.selected { background:var(--accent-bg); }
+    .ss-item.selected .ss-item-name { color:var(--accent); font-weight:700; }
+    .ss-item-avatar {
+      width:34px; height:34px; border-radius:9px;
+      background:var(--accent-bg); display:flex; align-items:center;
+      justify-content:center; font-size:15px; flex-shrink:0;
+      border:1px solid var(--border);
+    }
+    .ss-item-info { flex:1; min-width:0; }
+    .ss-item-name { font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .ss-item-sub { font-size:11px; color:var(--text3); margin-top:1px; }
+    .ss-item-check { color:var(--accent); font-size:13px; }
+
+    /* رسالة لا نتائج */
+    .ss-empty {
+      text-align:center; padding:24px 16px; color:var(--text3);
+      font-size:12px;
+    }
+    .ss-empty i { font-size:24px; display:block; margin-bottom:8px; opacity:.4; }
+
+    /* زر إضافة جديد */
+    .ss-add-btn {
+      padding:8px 12px; border-top:1px solid var(--border);
+      display:flex; align-items:center; gap:8px;
+      font-size:12px; font-weight:700; color:var(--accent);
+      cursor:pointer; transition:background .12s;
+    }
+    .ss-add-btn:hover { background:var(--accent-bg); }
+
+    /* خيار إلغاء التحديد */
+    .ss-clear-item {
+      display:flex; align-items:center; gap:10px;
+      padding:8px 11px; border-radius:9px; cursor:pointer;
+      font-size:12px; color:var(--text3);
+      border-bottom:1px solid var(--border);
+      margin-bottom:4px; transition:background .12s;
+    }
+    .ss-clear-item:hover { background:var(--card2); }
+
+    /* highlight للنص المبحوث */
+    .ss-highlight { color:var(--accent); font-weight:800; }
+  `;
+  document.head.appendChild(style);
+})();
+
+// ============================================================
+// Smart Select Engine
+// ============================================================
+let _ssActive = null; // الـ dropdown المفتوح حالياً
+
+// إغلاق كل الـ dropdowns
+function closeAllSS() {
+  if (_ssActive) {
+    _ssActive.remove();
+    _ssActive = null;
+  }
+  document.querySelectorAll('.smart-select-box.open').forEach(b => b.classList.remove('open'));
+}
+
+// إغلاق عند الضغط خارج
+document.addEventListener('mousedown', e => {
+  if (_ssActive && !_ssActive.contains(e.target) && !e.target.closest('.smart-select-box')) {
+    closeAllSS();
+  }
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeAllSS();
+});
+
+/*
+  openSmartSelect(wrapId, dataType, placeholder, onSelectCb)
+  dataType: 'customers' | 'suppliers' | 'warehouses' | 'products'
+  onSelectCb: function(id, label) — اختياري، يُستدعى عند الاختيار
+*/
+function openSmartSelect(wrapId, dataType, placeholder, onSelectCb) {
+  const wrap = document.getElementById(wrapId);
+  if (!wrap) return;
+  const box = wrap.querySelector('.smart-select-box');
+  const hiddenInput = wrap.querySelector('input[type=hidden]');
+  const labelEl = wrap.querySelector('.ss-label');
+
+  // لو كان مفتوحاً — أغلقه
+  if (box && box.classList.contains('open')) { closeAllSS(); return; }
+  closeAllSS();
+  if (box) box.classList.add('open');
+
+  // تحديد البيانات والأيقونات
+  const config = {
+    customers: {
+      data: S.customers || {},
+      icon: '👤',
+      getName: (id, v) => v.name,
+      getSub: (id, v) => [v.phone, v.balance ? 'رصيد: ' + N(v.balance) : ''].filter(Boolean).join(' • '),
+      clearLabel: placeholder || 'عميل نقدي',
+      addLabel: 'إضافة عميل جديد',
+      onAdd: () => { closeAllSS(); togglePosAddCust && togglePosAddCust(); }
+    },
+    suppliers: {
+      data: S.suppliers || {},
+      icon: '🏭',
+      getName: (id, v) => v.name,
+      getSub: (id, v) => [v.phone, v.email].filter(Boolean).join(' • '),
+      clearLabel: '-- اختر مورد --',
+      addLabel: 'إضافة مورد جديد',
+      onAdd: () => { closeAllSS(); document.querySelector('[onclick="openAddSupplier()"]')?.click(); }
+    },
+    warehouses: {
+      data: S.warehouses || {},
+      icon: '🏪',
+      getName: (id, v) => v.name,
+      getSub: (id, v) => v.location || '',
+      clearLabel: '-- اختر مخزن --',
+      addLabel: null
+    },
+    products: {
+      data: S.products || {},
+      icon: '📦',
+      getName: (id, v) => v.name,
+      getSub: (id, v) => [(v.code ? 'كود: ' + v.code : ''), (v.price ? 'سعر: ' + N(v.price) : ''), (v.qty !== undefined ? 'مخزون: ' + v.qty : '')].filter(Boolean).join(' • '),
+      clearLabel: '-- اختر منتج --',
+      addLabel: 'إضافة منتج جديد',
+      onAdd: () => { closeAllSS(); openAddProduct && openAddProduct(); }
+    }
+  };
+
+  const cfg = config[dataType];
+  if (!cfg) return;
+
+  // القيمة المحددة حالياً
+  const currentVal = hiddenInput ? hiddenInput.value : '';
+
+  // بناء الـ dropdown
+  const dd = document.createElement('div');
+  dd.className = 'ss-dropdown';
+
+  // حساب الموضع
+  const rect = (box || wrap).getBoundingClientRect();
+  const spaceBelow = window.innerHeight - rect.bottom;
+  const spaceAbove = rect.top;
+  const ddMaxH = 380;
+  const openUp = spaceBelow < ddMaxH && spaceAbove > spaceBelow;
+
+  dd.style.width = Math.max(rect.width, 300) + 'px';
+  dd.style.left = rect.left + 'px';
+  if (openUp) {
+    dd.style.bottom = (window.innerHeight - rect.top + 4) + 'px';
+    dd.style.top = 'auto';
+  } else {
+    dd.style.top = (rect.bottom + 4) + 'px';
+    dd.style.bottom = 'auto';
+  }
+
+  // حقل البحث
+  dd.innerHTML = `
+    <div class="ss-search-wrap" style="position:relative;">
+      <i class="fas fa-search ss-search-icon"></i>
+      <input class="ss-search" type="text" placeholder="ابحث بالاسم أو الكود..." autocomplete="off" id="ss-input-${wrapId}">
+    </div>
+    <div class="ss-list" id="ss-list-${wrapId}"></div>
+    ${cfg.addLabel ? `<div class="ss-add-btn" onclick="_ssAdd('${wrapId}','${dataType}')"><i class="fas fa-plus-circle"></i> ${cfg.addLabel}</div>` : ''}
+  `;
+
+  document.body.appendChild(dd);
+  _ssActive = dd;
+
+  // دالة رسم القائمة
+  function renderList(query) {
+    const listEl = document.getElementById('ss-list-' + wrapId);
+    if (!listEl) return;
+
+    let html = '';
+
+    // خيار الإلغاء (لو في قيمة محددة)
+    if (currentVal || dataType === 'customers') {
+      html += `<div class="ss-clear-item" onclick="_ssSelect('${wrapId}','','${escHtml(cfg.clearLabel)}',${onSelectCb ? '_ssCb_'+wrapId : 'null'})">
+        <span style="font-size:15px;">✖</span>
+        <span>${cfg.clearLabel}</span>
+      </div>`;
+    }
+
+    const entries = Object.entries(cfg.data);
+    if (!entries.length) {
+      html += `<div class="ss-empty"><i class="fas fa-inbox"></i>لا توجد بيانات</div>`;
+      listEl.innerHTML = html;
+      return;
+    }
+
+    const q = (query || '').trim().toLowerCase();
+    const filtered = entries.filter(([id, v]) => {
+      const name = (cfg.getName(id, v) || '').toLowerCase();
+      const sub = (cfg.getSub(id, v) || '').toLowerCase();
+      const code = (v.code || v.barcode || '').toLowerCase();
+      return !q || name.includes(q) || sub.includes(q) || code.includes(q);
+    });
+
+    if (!filtered.length) {
+      html += `<div class="ss-empty"><i class="fas fa-search"></i>لا نتائج لـ "${escHtml(query)}"</div>`;
+      listEl.innerHTML = html;
+      return;
+    }
+
+    html += filtered.slice(0, 60).map(([id, v]) => {
+      const name = cfg.getName(id, v) || '';
+      const sub = cfg.getSub(id, v) || '';
+      const isSelected = id === currentVal;
+      const highlighted = q ? name.replace(new RegExp('(' + escRegex(q) + ')', 'gi'), '<span class="ss-highlight">$1</span>') : escHtml(name);
+      const cbName = onSelectCb ? '_ssCb_' + wrapId : 'null';
+      return `<div class="ss-item${isSelected ? ' selected' : ''}" onclick="_ssSelect('${wrapId}','${escHtml(id)}','${escHtml(name)}',${cbName})">
+        <div class="ss-item-avatar">${cfg.icon}</div>
+        <div class="ss-item-info">
+          <div class="ss-item-name">${highlighted}</div>
+          ${sub ? `<div class="ss-item-sub">${escHtml(sub)}</div>` : ''}
+        </div>
+        ${isSelected ? '<i class="fas fa-check ss-item-check"></i>' : ''}
+      </div>`;
+    }).join('');
+
+    if (filtered.length > 60) {
+      html += `<div class="ss-empty" style="padding:8px;"><i class="fas fa-info-circle"></i> ${filtered.length - 60} نتيجة إضافية — اكتب أكثر لتضييق النتائج</div>`;
+    }
+
+    listEl.innerHTML = html;
+  }
+
+  // تخزين الـ callback
+  if (onSelectCb) window['_ssCb_' + wrapId] = onSelectCb;
+
+  renderList('');
+
+  // حدث البحث
+  const searchInput = document.getElementById('ss-input-' + wrapId);
+  if (searchInput) {
+    searchInput.addEventListener('input', e => renderList(e.target.value));
+    searchInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        const first = document.querySelector(`#ss-list-${wrapId} .ss-item`);
+        if (first) first.click();
+      }
+    });
+    setTimeout(() => searchInput.focus(), 50);
+  }
+}
+
+// تنفيذ الاختيار
+function _ssSelect(wrapId, id, label, cb) {
+  const wrap = document.getElementById(wrapId);
+  if (!wrap) { closeAllSS(); return; }
+
+  // تحديث الـ hidden input
+  const hidden = wrap.querySelector('input[type=hidden]');
+  if (hidden) hidden.value = id;
+
+  // تحديث الـ label
+  const labelEl = wrap.querySelector('.ss-label');
+  if (labelEl) {
+    labelEl.textContent = label || '-- اختر --';
+    labelEl.style.color = id ? 'var(--text)' : 'var(--text3)';
+  }
+
+  // تحديث الأيقونة
+  const iconEl = wrap.querySelector('.ss-icon');
+  if (iconEl && !id) {
+    const defaultIcons = { customers:'👤', suppliers:'🏭', warehouses:'🏪', products:'📦' };
+    // keep icon as is
+  }
+
+  closeAllSS();
+
+  // استدعاء الـ callback
+  if (typeof cb === 'function') cb(id, label);
+  else if (typeof window[cb] === 'function') window[cb](id, label);
+
+  // dispatch change event على الـ hidden input للتوافق
+  if (hidden) {
+    hidden.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+}
+
+function _ssAdd(wrapId, dataType) {
+  closeAllSS();
+  const actions = {
+    customers: () => { if(typeof togglePosAddCust==='function') togglePosAddCust(); else if(typeof openAddCustomer==='function') openAddCustomer(); },
+    suppliers: () => { document.querySelector('[onclick*="openAddSupplier"]')?.click() || (typeof openAddSupplier==='function' && openAddSupplier()); },
+    products:  () => { typeof openAddProduct==='function' && openAddProduct(); },
+    warehouses:() => { document.querySelector('[onclick*="openAddWarehouse"]')?.click(); }
+  };
+  if (actions[dataType]) actions[dataType]();
+}
+
+// helpers
+function escHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function escRegex(s) { return (s||'').replace(/[.*+?^${}()|[\]\]/g,'\$&'); }
+
+// ============================================================
+// ربط الـ Smart Select بالأماكن المطلوبة
+// ============================================================
+
+// إصلاح savePosNewCust لتحديث الـ smart select بعد إضافة عميل جديد
+const _origSavePosNewCust = window.savePosNewCust || savePosNewCust;
+window.savePosNewCust = async function() {
+  const name=(document.getElementById('pos-new-cust-name')?.value||'').trim();
+  if(!name){toast('يرجى إدخال اسم العميل','error');return;}
+  const phone=(document.getElementById('pos-new-cust-phone')?.value||'').trim();
+  const addr=(document.getElementById('pos-new-cust-addr')?.value||'').trim();
+  const data={name,phone,addr,email:'',notes:'',totalBuy:0,balance:0,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+  try{
+    const newKey=uid();
+    await dbUpdate('customers/'+newKey,data);
+    // تحديث الـ smart select مباشرة
+    const wrap=document.getElementById('pos-cust-wrap');
+    if(wrap){
+      const hidden=wrap.querySelector('input[type=hidden]');
+      const labelEl=wrap.querySelector('.ss-label');
+      if(hidden) hidden.value=newKey;
+      if(labelEl){labelEl.textContent=name;labelEl.style.color='var(--text)';}
+    }
+    togglePosAddCust && togglePosAddCust();
+    toast('تم إضافة العميل واختياره ✅');
+  }catch(e){toast('خطأ: '+e.message,'error');}
+};
+
+// إصلاح completeSale لقراءة العميل من الـ hidden input
+const _origCompleteSale = window.completeSale || completeSale;
+
+// إصلاح openManualInv لإعادة تعيين الـ smart selects
+const _origOpenManualInv = window.openManualInv;
+if(typeof openManualInv === 'function'){
+  const __origOMI = openManualInv;
+  window.openManualInv = function(...args){
+    __origOMI(...args);
+    // إعادة تعيين smart selects في الفاتورة اليدوية
+    setTimeout(()=>{
+      ['mi-cust-wrap','mi-wh-wrap'].forEach(wid=>{
+        const wrap=document.getElementById(wid);
+        if(!wrap)return;
+        const h=wrap.querySelector('input[type=hidden]');
+        const l=wrap.querySelector('.ss-label');
+        if(h) h.value='';
+        if(l){
+          if(wid==='mi-cust-wrap') l.textContent='عميل نقدي';
+          else l.textContent='-- اختر مخزن --';
+          l.style.color='var(--text3)';
+        }
+      });
+    },100);
+  };
+}
+
+// إعادة تعيين smart selects عند فتح نافذة المشتريات
+const _origOpenPurchase = window.openPurchaseModal;
+if(typeof openPurchaseModal === 'function'){
+  const __origOP = openPurchaseModal;
+  window.openPurchaseModal = function(...args){
+    __origOP(...args);
+    setTimeout(()=>{
+      ['purf-sup-wrap','purf-wh-wrap'].forEach(wid=>{
+        const wrap=document.getElementById(wid);
+        if(!wrap)return;
+        const h=wrap.querySelector('input[type=hidden]');
+        const l=wrap.querySelector('.ss-label');
+        if(h) h.value='';
+        if(l){
+          l.textContent=wid.includes('sup')?'-- اختر مورد --':'-- اختر مخزن --';
+          l.style.color='var(--text3)';
+        }
+      });
+    },100);
+  };
+}
 </script>
 </body>
 </html>
