@@ -1,7 +1,7 @@
 // ============================================================
-// CTG SERVICE WORKER v2
+// CTG SERVICE WORKER v3
 // ============================================================
-const CACHE = 'ctg-v2';
+const CACHE = 'ctg-v3';
 
 const CORE = ['./', './index.html'];
 
@@ -39,14 +39,34 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // Firebase - لا نتدخل
-  if (
-    url.hostname.includes('firebaseio.com') ||
-    url.hostname.includes('gstatic.com') ||
-    (url.hostname.includes('googleapis.com') && url.pathname.includes('firebase'))
-  ) return;
+  // Firebase Realtime DB — لا نتدخل أبداً (اتركه للمتصفح)
+  if (url.hostname.includes('firebaseio.com')) return;
 
-  // Google Fonts - Cache First
+  // Firebase SDK على gstatic — أوف لاين: نرجع خطأ فوري بدل الانتظار
+  if (url.hostname.includes('gstatic.com') || url.hostname.includes('firebasestorage')) {
+    e.respondWith(
+      fetch(e.request).catch(() => new Response('', {
+        status: 503,
+        statusText: 'Offline',
+        headers: { 'Content-Type': 'application/javascript' }
+      }))
+    );
+    return;
+  }
+
+  // googleapis firebase — نفس المعالجة
+  if (url.hostname.includes('googleapis.com')) {
+    e.respondWith(
+      fetch(e.request).catch(() => new Response('', {
+        status: 503,
+        statusText: 'Offline',
+        headers: { 'Content-Type': 'application/javascript' }
+      }))
+    );
+    return;
+  }
+
+  // Google Fonts — Cache First
   if (url.hostname.includes('fonts.googleapis.com') || url.hostname.includes('fonts.gstatic.com')) {
     e.respondWith(
       caches.match(e.request).then(cached => {
@@ -60,7 +80,7 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // CDN - Cache First
+  // CDN — Cache First
   if (url.hostname.includes('cdnjs.cloudflare.com')) {
     e.respondWith(
       caches.match(e.request).then(cached => {
@@ -68,13 +88,13 @@ self.addEventListener('fetch', e => {
         return fetch(e.request).then(res => {
           if (res.ok) caches.open(CACHE).then(c => c.put(e.request, res.clone()));
           return res;
-        }).catch(() => new Response('',{headers:{'Content-Type':'application/javascript'}}));
+        }).catch(() => new Response('', {headers:{'Content-Type':'application/javascript'}}));
       })
     );
     return;
   }
 
-  // HTML - Network First then Cache
+  // HTML (الملف الرئيسي) — Cache First أوف لاين، Network First أون لاين
   if (e.request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname === '/') {
     e.respondWith(
       fetch(e.request)
@@ -86,12 +106,14 @@ self.addEventListener('fetch', e => {
           return res;
         })
         .catch(() =>
-          caches.match(e.request).then(cached => cached || caches.match('./index.html'))
+          caches.match(e.request)
+            .then(cached => cached || caches.match('./index.html'))
         )
     );
     return;
   }
 
+  // باقي الطلبات
   e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
 });
 
