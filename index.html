@@ -1756,19 +1756,21 @@ window.addEventListener('fbReady',()=>{
   FB.$update=window.$update; FB.$remove=window.$remove; FB.$onValue=window.$onValue;
 
   const listen=(path,cb)=>FB.$onValue(FB.$ref(DB,'ctg/'+path),snap=>cb(snap.val()||{}));
-  listen('products',v=>{S.products=v;renderProducts();renderPosGrid();updateDashboard();updateBCSelects();fillCatSelects();renderWarehouses();renderCategories();});
-  listen('customers',v=>{S.customers=v;renderCustomers();updateCustSelects();updateDashboard();if(document.getElementById('pg-debts')?.classList.contains('active'))renderDebtsPage();});
-  listen('warehouses',v=>{S.warehouses=v;renderWarehouses();updateWhSelects();updateDashboard();});
-  listen('sales',v=>{S.sales=v;renderSales();updateDashboard();updateFinance();if(document.getElementById('pg-debts')?.classList.contains('active'))renderDebtsPage();});
-  listen('purchases',v=>{S.purchases=v;renderPurchases();renderSuppliers();if(document.getElementById('pg-debts')?.classList.contains('active'))renderDebtsPage();});
-  listen('expenses',v=>{S.expenses=v;renderExpenses();updateFinance();});
-  listen('suppliers',v=>{S.suppliers=v;renderSuppliers();fillSupSelects();});
-  listen('movements',v=>{S.movements=v;renderMovements();});
-  listen('categories',v=>{S.categories=v;renderCategories();fillCatSelects();renderProducts();});
-  listen('cashboxes',v=>{S.cashboxes=v;renderCashboxes();fillCashboxSelects();});
-  listen('cashboxLog',v=>{S.cashboxLog=v;renderCashboxLog();});
-  listen('settings',v=>{if(v&&v.company){S.settings={...S.settings,...v};loadSettingsUI();if(document.getElementById('pg-inv-settings')?.classList.contains('active'))loadInvSettingsUI();}});
-  listen('users',v=>{S.users=v||{};renderUsers();});
+  // حفظ فوري في IDB عند كل تحديث من Firebase — هذا يضمن أن IDB دائماً نسخة من السحابة
+  const listenAndSave=(path,cb)=>listen(path,v=>{cb(v);IDB.saveStore(path,v).catch(()=>{});});
+  listenAndSave('products',v=>{S.products=v;renderProducts();renderPosGrid();updateDashboard();updateBCSelects();fillCatSelects();renderWarehouses();renderCategories();});
+  listenAndSave('customers',v=>{S.customers=v;renderCustomers();updateCustSelects();updateDashboard();if(document.getElementById('pg-debts')?.classList.contains('active'))renderDebtsPage();});
+  listenAndSave('warehouses',v=>{S.warehouses=v;renderWarehouses();updateWhSelects();updateDashboard();});
+  listenAndSave('sales',v=>{S.sales=v;renderSales();updateDashboard();updateFinance();if(document.getElementById('pg-debts')?.classList.contains('active'))renderDebtsPage();});
+  listenAndSave('purchases',v=>{S.purchases=v;renderPurchases();renderSuppliers();if(document.getElementById('pg-debts')?.classList.contains('active'))renderDebtsPage();});
+  listenAndSave('expenses',v=>{S.expenses=v;renderExpenses();updateFinance();});
+  listenAndSave('suppliers',v=>{S.suppliers=v;renderSuppliers();fillSupSelects();});
+  listenAndSave('movements',v=>{S.movements=v;renderMovements();});
+  listenAndSave('categories',v=>{S.categories=v;renderCategories();fillCatSelects();renderProducts();});
+  listenAndSave('cashboxes',v=>{S.cashboxes=v;renderCashboxes();fillCashboxSelects();});
+  listenAndSave('cashboxLog',v=>{S.cashboxLog=v;renderCashboxLog();});
+  listen('settings',v=>{if(v&&v.company){S.settings={...S.settings,...v};IDB.saveStore('settings',S.settings).catch(()=>{});loadSettingsUI();if(document.getElementById('pg-inv-settings')?.classList.contains('active'))loadInvSettingsUI();}});
+  listen('users',v=>{S.users=v||{};IDB.saveStore('users',S.users).catch(()=>{});renderUsers();});
 
   setTimeout(async()=>{
     document.getElementById('loading').classList.add('out');
@@ -5737,10 +5739,10 @@ window.nav=function(name){
 // INDEXEDDB ENGINE
 // ============================================================
 const IDB={
-  db:null,DB_NAME:'ctg_offline',DB_VERSION:2,
+  db:null,DB_NAME:'ctg_offline',DB_VERSION:1,
   STORES:['products','customers','warehouses','sales','purchases',
           'expenses','suppliers','movements','categories',
-          'cashboxes','cashboxLog','users','settings','pending_queue','device_meta'],
+          'cashboxes','cashboxLog','users','settings','pending_queue'],
   open(){
     return new Promise((resolve,reject)=>{
       if(this.db){resolve(this.db);return;}
@@ -5908,26 +5910,15 @@ function updateQueueBadge(count){
 const OM={
   isOnline:navigator.onLine,
   syncing:false,
-  _idbReady:false,
-  _cloudSeedDone:false, // هل تم بذر البيانات من السحابة لهذا الجهاز؟
 
   init(){
     window.addEventListener('online',()=>this.goOnline());
     window.addEventListener('offline',()=>this.goOffline());
     IDB.open().then(async()=>{
       console.log('IndexedDB ready');
-      this._idbReady=true;
       // تحديث عداد الطابور عند البداية
       const q=await IDB.getQueue();
       updateQueueBadge(q.length);
-      // استرجاع علامة البذر — إذا هذا الجهاز قد تزامن مع السحابة من قبل
-      try{
-        const meta=await IDB.getStore('device_meta');
-        if(meta&&meta.seed_done&&meta.seed_done.done){
-          this._cloudSeedDone=true;
-          console.log('Device was previously seeded from cloud');
-        }
-      }catch(e){}
     });
     this.updateUI();
     // مزامنة IDB كل 30 ثانية
@@ -5939,6 +5930,7 @@ const OM={
     this.updateUI();
     document.getElementById('offline-badge')?.classList.remove('show');
     toast('🌐 عاد الإنترنت — جاري رفع العمليات المعلقة...','info');
+    if(window.$db) window._fbAvailable=true;
     setTimeout(()=>this.flushQueue(),1500);
   },
 
@@ -6005,73 +5997,11 @@ const OM={
     }catch(e){}
   },
 
-  // فحص هل قاعدة البيانات المحلية فارغة؟
-  async _isLocalDBEmpty(){
-    const stores=['products','customers','sales','purchases','expenses'];
-    for(const st of stores){
-      const d=await IDB.getStore(st);
-      if(Object.keys(d).length>0) return false;
-    }
-    return true;
-  },
-
-  // بذر البيانات من السحابة إلى IDB (للجهاز الجديد)
-  async _seedFromCloud(){
-    if(!window._fbAvailable||!window.$db) return false;
-    try{
-      toast('🔄 جهاز جديد — جاري سحب بيانات السحابة أولاً...','info');
-      const stores=['products','customers','warehouses','sales','purchases',
-                    'expenses','suppliers','movements','categories',
-                    'cashboxes','cashboxLog','users','settings'];
-      let seeded=false;
-      for(const st of stores){
-        try{
-          const snap=await new Promise((res,rej)=>{
-            const ref=window.$ref(window.$db,'ctg/'+st);
-            window.$onValue(ref,s=>{res(s);},{onlyOnce:true});
-            setTimeout(()=>rej(new Error('timeout')),8000);
-          });
-          const val=snap.val();
-          if(val&&typeof val==='object'){
-            S[st]=val;
-            await IDB.saveStore(st,val).catch(()=>{});
-            seeded=true;
-          }
-        }catch(e){console.warn('seed store failed:',st,e);}
-      }
-      if(seeded){
-        this._cloudSeedDone=true;
-        await IDB.putRecord('device_meta','seed_done',{done:true,ts:Date.now()}).catch(()=>{});
-        toast('✅ تم سحب بيانات السحابة وحفظها محلياً','success');
-      }
-      return seeded;
-    }catch(e){
-      console.warn('_seedFromCloud failed:',e);
-      return false;
-    }
-  },
-
   // تحميل بيانات IDB إلى S لما نكون أوف لاين
   async loadFromIDB(){
     const stores=['products','customers','warehouses','sales','purchases',
                   'expenses','suppliers','movements','categories',
                   'cashboxes','cashboxLog','users'];
-
-    // --- حماية الجهاز الجديد: إذا كانت IDB فارغة والإنترنت متاح → اسحب من السحابة أولاً ---
-    const isEmpty=await this._isLocalDBEmpty();
-    if(isEmpty&&this.isOnline&&window._fbAvailable){
-      console.log('IDB empty on new device — seeding from cloud first');
-      const ok=await this._seedFromCloud();
-      if(ok){
-        // بعد البذر أعد الرسم وارجع بدون تحميل أوف لاين
-        this._rerender('customers');
-        this._rerender('products');
-        this._rerender('sales');
-        return;
-      }
-    }
-
-    // --- تحميل عادي من IDB ---
     let found=false;
     for(const st of stores){
       const d=await IDB.getStore(st);
@@ -6089,37 +6019,70 @@ const OM={
     }
   },
 
-  // رفع الطابور إلى Firebase
+  // رفع الطابور إلى Firebase مع مقارنة التواريخ لحماية البيانات
   async flushQueue(){
     if(this.syncing||!this.isOnline||!window._fbAvailable)return;
-
-    // --- حماية الجهاز الجديد: إذا IDB فارغة ولم يُبذر من السحابة بعد، لا ترفع ---
-    const isEmpty=await this._isLocalDBEmpty();
-    if(isEmpty&&!this._cloudSeedDone){
-      console.warn('flushQueue blocked: local DB is empty — seeding from cloud first');
-      toast('🔄 في انتظار مزامنة بيانات السحابة أولاً...','info');
-      await this._seedFromCloud();
-      return;
-    }
-
     this.syncing=true;
+    const skipped=[];
     try{
       const queue=await IDB.getQueue();
       if(!queue.length){this.syncing=false;return;}
-      toast(`⏫ رفع ${queue.length} عملية معلقة...`,'info');
+      toast(`🔄 مراجعة ${queue.length} عملية معلقة...`,'info');
+
       for(const op of queue){
         try{
-          if(op.type==='set')         await _origDbSet(op.path,op.data);
-          else if(op.type==='push')   await _origDbPush(op.path,op.data);
+          // عمليات الإضافة (push) والحذف لا تحتاج مقارنة — ارفعها مباشرة
+          if(op.type==='push'){
+            await _origDbPush(op.path,op.data);
+            continue;
+          }
+          if(op.type==='remove'){
+            await _origDbRemove(op.path);
+            continue;
+          }
+
+          // عمليات set/update: قارن تاريخ السجل المحلي بالسحابة
+          const store=op.path.split('/')[0];
+          const key=op.path.split('/')[1];
+          const localTs=new Date(op.data?.updatedAt||op.data?.createdAt||op.data?.date||0).getTime();
+
+          if(key&&localTs>0){
+            // اقرأ السجل الحالي من السحابة
+            const cloudSnap=await new Promise((res,rej)=>{
+              const ref=FB.$ref(DB,'ctg/'+op.path);
+              FB.$onValue(ref,s=>{res(s.val());},{onlyOnce:true});
+              setTimeout(()=>rej(new Error('timeout')),5000);
+            }).catch(()=>null);
+
+            if(cloudSnap){
+              const cloudTs=new Date(cloudSnap.updatedAt||cloudSnap.createdAt||cloudSnap.date||0).getTime();
+              if(cloudTs>localTs){
+                // السحابة أحدث — لا تتجاوزها، تجاهل هذه العملية
+                console.warn(`skip: cloud record newer for ${op.path}`,{cloudTs,localTs});
+                skipped.push(op);
+                continue;
+              }
+            }
+          }
+
+          // السجل المحلي أحدث أو لا يوجد سجل على السحابة — ارفعه
+          if(op.type==='set')    await _origDbSet(op.path,op.data);
           else if(op.type==='update') await _origDbUpdate(op.path,op.data);
-          else if(op.type==='remove') await _origDbRemove(op.path);
-        }catch(e){console.warn('flush op failed:',op.type,e);}
+
+        }catch(e){console.warn('flush op failed:',op.type,op.path,e);}
       }
+
       await IDB.clearQueue();
       updateQueueBadge(0);
-      toast('✅ تمت المزامنة — جميع البيانات رُفعت','success');
+
+      if(skipped.length){
+        toast(`✅ مزامنة مكتملة — تم تجاهل ${skipped.length} عملية (السحابة أحدث)`,'info');
+      }else{
+        toast('✅ تمت المزامنة — جميع البيانات رُفعت','success');
+      }
     }catch(e){
       toast('⚠️ خطأ في المزامنة','error');
+      console.error('flushQueue error',e);
     }
     this.syncing=false;
   },
@@ -6129,20 +6092,12 @@ const OM={
     const stores=['products','customers','warehouses','sales','purchases',
                   'expenses','suppliers','movements','categories',
                   'cashboxes','cashboxLog','users'];
-    let hasData=false;
     for(const st of stores){
-      if(S[st]&&Object.keys(S[st]).length){
+      if(S[st]&&Object.keys(S[st]).length)
         await IDB.saveStore(st,S[st]).catch(()=>{});
-        hasData=true;
-      }
     }
     if(S.settings?.company)
       await IDB.saveStore('settings',S.settings).catch(()=>{});
-    // بعد أول مزامنة ناجحة من السحابة، سجّل أن هذا الجهاز مُبذر
-    if(hasData&&!this._cloudSeedDone){
-      this._cloudSeedDone=true;
-      await IDB.putRecord('device_meta','seed_done',{done:true,ts:Date.now()}).catch(()=>{});
-    }
   }
 };
 
@@ -6245,30 +6200,21 @@ window.addEventListener('fbOffline',()=>{
   setTimeout(async()=>{
     document.getElementById('loading')?.classList.add('out');
     await OM.loadFromIDB();
-    // تحقق من الجلسة
-    const session=sessionStorage.getItem('ctg_user');
-    if(!session){
-      // حاول تحميل المستخدمين من IDB للتحقق من تسجيل الدخول
+    // checkSession() تستخدم 'ctg-user' — نفس الـ key الصحيح
+    if(!checkSession()){
       document.getElementById('login-screen').style.display='flex';
       document.querySelector('.layout').style.display='none';
+    }else{
+      document.getElementById('login-screen').style.display='none';
+      document.querySelector('.layout').style.display='flex';
     }
   },800);
 });
 
-// مزامنة IDB أول مرة بعد تحميل Firebase
-window.addEventListener('fbReady',async()=>{
-  // انتظر قليلاً حتى تكتمل بيانات الـ listeners
-  setTimeout(async()=>{
-    // إذا IDB فارغة وهذا جهاز جديد → ابذر من السحابة أولاً
-    const isEmpty=await OM._isLocalDBEmpty();
-    if(isEmpty&&!OM._cloudSeedDone){
-      console.log('fbReady: new device detected — seeding IDB from cloud');
-      await OM._seedFromCloud();
-    }else{
-      // جهاز معروف → زامن البيانات الحالية إلى IDB
-      await OM.syncToIDB();
-    }
-  },5000);
+// مزامنة IDB أول مرة وبشكل دوري — يضمن أن الأوف لاين دائماً يملك نسخة حديثة
+window.addEventListener('fbReady',()=>{
+  setTimeout(()=>OM.syncToIDB(),5000);
+  setInterval(()=>{if(OM.isOnline&&window._fbAvailable)OM.syncToIDB();},120000);
 },{once:true});
 
 // ============================================================
