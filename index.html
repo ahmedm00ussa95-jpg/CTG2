@@ -5737,10 +5737,10 @@ window.nav=function(name){
 // INDEXEDDB ENGINE
 // ============================================================
 const IDB={
-  db:null,DB_NAME:'ctg_offline',DB_VERSION:1,
+  db:null,DB_NAME:'ctg_offline',DB_VERSION:2,
   STORES:['products','customers','warehouses','sales','purchases',
           'expenses','suppliers','movements','categories',
-          'cashboxes','cashboxLog','users','settings','pending_queue'],
+          'cashboxes','cashboxLog','users','settings','pending_queue','device_meta'],
   open(){
     return new Promise((resolve,reject)=>{
       if(this.db){resolve(this.db);return;}
@@ -5922,8 +5922,8 @@ const OM={
       updateQueueBadge(q.length);
       // استرجاع علامة البذر — إذا هذا الجهاز قد تزامن مع السحابة من قبل
       try{
-        const cfg=await IDB.getStore('settings');
-        if(cfg&&cfg.__seed_done__&&cfg.__seed_done__.done){
+        const meta=await IDB.getStore('device_meta');
+        if(meta&&meta.seed_done&&meta.seed_done.done){
           this._cloudSeedDone=true;
           console.log('Device was previously seeded from cloud');
         }
@@ -6041,7 +6041,7 @@ const OM={
       }
       if(seeded){
         this._cloudSeedDone=true;
-        await IDB.putRecord('settings','__seed_done__',{done:true,ts:Date.now()}).catch(()=>{});
+        await IDB.putRecord('device_meta','seed_done',{done:true,ts:Date.now()}).catch(()=>{});
         toast('✅ تم سحب بيانات السحابة وحفظها محلياً','success');
       }
       return seeded;
@@ -6141,7 +6141,7 @@ const OM={
     // بعد أول مزامنة ناجحة من السحابة، سجّل أن هذا الجهاز مُبذر
     if(hasData&&!this._cloudSeedDone){
       this._cloudSeedDone=true;
-      await IDB.putRecord('settings','__seed_done__',{done:true,ts:Date.now()}).catch(()=>{});
+      await IDB.putRecord('device_meta','seed_done',{done:true,ts:Date.now()}).catch(()=>{});
     }
   }
 };
