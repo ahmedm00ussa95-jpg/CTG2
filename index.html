@@ -14,16 +14,17 @@
 <script>
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('./sw.js',{scope:'./'})
-    .then(reg=>{ console.log('SW ready'); })
+    .then(reg=>{ console.log('SW ready',reg.scope); })
     .catch(e=>console.warn('SW failed:',e));
 }
 window._fbAvailable=false;
+// timeout مخفض لـ 3 ثوانٍ — SW الجديد يُرجع خطأ فوري أوف لاين
 window._fbTimeout=setTimeout(()=>{
   if(!window._fbAvailable){
-    console.warn('Firebase timeout - offline mode');
+    console.warn('Firebase timeout - switching to offline mode');
     window.dispatchEvent(new Event('fbOffline'));
   }
-},6000);
+},3000);
 </script>
 <script type="module">
   try{
@@ -1756,7 +1757,7 @@ window.addEventListener('fbReady',()=>{
   FB.$update=window.$update; FB.$remove=window.$remove; FB.$onValue=window.$onValue;
 
   const listen=(path,cb)=>FB.$onValue(FB.$ref(DB,'ctg/'+path),snap=>cb(snap.val()||{}));
-  // حفظ فوري في IDB عند كل تحديث من Firebase — هذا يضمن أن IDB دائماً نسخة من السحابة
+  // حفظ فوري في IDB عند كل تحديث — يضمن أن الأوف لاين دائماً نسخة حديثة
   const listenAndSave=(path,cb)=>listen(path,v=>{cb(v);IDB.saveStore(path,v).catch(()=>{});});
   listenAndSave('products',v=>{S.products=v;renderProducts();renderPosGrid();updateDashboard();updateBCSelects();fillCatSelects();renderWarehouses();renderCategories();});
   listenAndSave('customers',v=>{S.customers=v;renderCustomers();updateCustSelects();updateDashboard();if(document.getElementById('pg-debts')?.classList.contains('active'))renderDebtsPage();});
@@ -5927,10 +5928,10 @@ const OM={
 
   goOnline(){
     this.isOnline=true;
+    if(window.$db) window._fbAvailable=true;
     this.updateUI();
     document.getElementById('offline-badge')?.classList.remove('show');
     toast('🌐 عاد الإنترنت — جاري رفع العمليات المعلقة...','info');
-    if(window.$db) window._fbAvailable=true;
     setTimeout(()=>this.flushQueue(),1500);
   },
 
@@ -6019,7 +6020,7 @@ const OM={
     }
   },
 
-  // رفع الطابور إلى Firebase مع مقارنة التواريخ لحماية البيانات
+  // رفع الطابور إلى Firebase مع مقارنة التاريخ والمستخدم
   async flushQueue(){
     if(this.syncing||!this.isOnline||!window._fbAvailable)return;
     this.syncing=true;
@@ -6031,43 +6032,49 @@ const OM={
 
       for(const op of queue){
         try{
-          // عمليات الإضافة (push) والحذف لا تحتاج مقارنة — ارفعها مباشرة
-          if(op.type==='push'){
-            await _origDbPush(op.path,op.data);
-            continue;
-          }
-          if(op.type==='remove'){
-            await _origDbRemove(op.path);
-            continue;
-          }
+          // push و remove: ارفع مباشرة بدون مقارنة
+          if(op.type==='push'){  await _origDbPush(op.path,op.data); continue; }
+          if(op.type==='remove'){ await _origDbRemove(op.path); continue; }
 
-          // عمليات set/update: قارن تاريخ السجل المحلي بالسحابة
-          const store=op.path.split('/')[0];
-          const key=op.path.split('/')[1];
-          const localTs=new Date(op.data?.updatedAt||op.data?.createdAt||op.data?.date||0).getTime();
+          // set / update: قارن التاريخ واسم المستخدم مع السحابة
+          const localTs  = new Date(op.data?.updatedAt||op.data?.createdAt||op.data?.date||0).getTime();
+          const localUser = op.data?.updatedBy||op.data?.createdBy||'';
+          const key = op.path.split('/')[1];
 
-          if(key&&localTs>0){
-            // اقرأ السجل الحالي من السحابة
-            const cloudSnap=await new Promise((res,rej)=>{
-              const ref=FB.$ref(DB,'ctg/'+op.path);
-              FB.$onValue(ref,s=>{res(s.val());},{onlyOnce:true});
-              setTimeout(()=>rej(new Error('timeout')),5000);
-            }).catch(()=>null);
+          if(key && localTs>0){
+            const cloudVal = await new Promise(res=>{
+              try{
+                FB.$onValue(FB.$ref(DB,'ctg/'+op.path), s=>res(s.val()), {onlyOnce:true});
+                setTimeout(()=>res(null),4000);
+              }catch(e){res(null);}
+            });
 
-            if(cloudSnap){
-              const cloudTs=new Date(cloudSnap.updatedAt||cloudSnap.createdAt||cloudSnap.date||0).getTime();
-              if(cloudTs>localTs){
-                // السحابة أحدث — لا تتجاوزها، تجاهل هذه العملية
-                console.warn(`skip: cloud record newer for ${op.path}`,{cloudTs,localTs});
-                skipped.push(op);
+            if(cloudVal){
+              const cloudTs   = new Date(cloudVal.updatedAt||cloudVal.createdAt||cloudVal.date||0).getTime();
+              const cloudUser = cloudVal.updatedBy||cloudVal.createdBy||'';
+
+              if(cloudTs > localTs){
+                // السحابة أحدث تاريخاً
+                console.info(`⏭ تجاهل: السحابة أحدث | المسار: ${op.path} | سحابة: ${cloudUser} @ ${new Date(cloudTs).toLocaleString('ar-EG')} | محلي: ${localUser} @ ${new Date(localTs).toLocaleString('ar-EG')}`);
+                skipped.push({path:op.path, localUser, cloudUser,
+                  localTime:new Date(localTs).toLocaleString('ar-EG'),
+                  cloudTime:new Date(cloudTs).toLocaleString('ar-EG')});
+                continue;
+              }
+              // نفس التاريخ تماماً: لو مستخدم مختلف على سحابة أحدث → تجاهل
+              if(cloudTs===localTs && cloudUser && localUser && cloudUser!==localUser){
+                console.info(`⏭ تجاهل: نفس الوقت مستخدم مختلف | ${op.path}`);
+                skipped.push({path:op.path, localUser, cloudUser,
+                  localTime:new Date(localTs).toLocaleString('ar-EG'),
+                  cloudTime:new Date(cloudTs).toLocaleString('ar-EG')});
                 continue;
               }
             }
           }
 
-          // السجل المحلي أحدث أو لا يوجد سجل على السحابة — ارفعه
+          // المحلي أحدث أو لا يوجد سجل على السحابة → ارفع
           if(op.type==='set')    await _origDbSet(op.path,op.data);
-          else if(op.type==='update') await _origDbUpdate(op.path,op.data);
+          else                   await _origDbUpdate(op.path,op.data);
 
         }catch(e){console.warn('flush op failed:',op.type,op.path,e);}
       }
@@ -6076,9 +6083,10 @@ const OM={
       updateQueueBadge(0);
 
       if(skipped.length){
-        toast(`✅ مزامنة مكتملة — تم تجاهل ${skipped.length} عملية (السحابة أحدث)`,'info');
+        console.table(skipped);
+        toast(`✅ مزامنة مكتملة — ${queue.length-skipped.length} عملية رُفعت، ${skipped.length} تجاهلت (السحابة أحدث)`,'info');
       }else{
-        toast('✅ تمت المزامنة — جميع البيانات رُفعت','success');
+        toast(`✅ تمت المزامنة — ${queue.length} عملية رُفعت بنجاح`,'success');
       }
     }catch(e){
       toast('⚠️ خطأ في المزامنة','error');
@@ -6200,7 +6208,7 @@ window.addEventListener('fbOffline',()=>{
   setTimeout(async()=>{
     document.getElementById('loading')?.classList.add('out');
     await OM.loadFromIDB();
-    // checkSession() تستخدم 'ctg-user' — نفس الـ key الصحيح
+    // checkSession تستخدم 'ctg-user' (بشرطة) — هذا هو الـ key الصحيح
     if(!checkSession()){
       document.getElementById('login-screen').style.display='flex';
       document.querySelector('.layout').style.display='none';
@@ -6211,7 +6219,7 @@ window.addEventListener('fbOffline',()=>{
   },800);
 });
 
-// مزامنة IDB أول مرة وبشكل دوري — يضمن أن الأوف لاين دائماً يملك نسخة حديثة
+// مزامنة IDB أول مرة وبشكل دوري — يضمن أن الأوف لاين دائماً نسخة حديثة
 window.addEventListener('fbReady',()=>{
   setTimeout(()=>OM.syncToIDB(),5000);
   setInterval(()=>{if(OM.isOnline&&window._fbAvailable)OM.syncToIDB();},120000);
